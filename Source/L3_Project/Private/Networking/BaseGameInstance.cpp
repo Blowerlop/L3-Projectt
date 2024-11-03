@@ -7,6 +7,17 @@
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "Interfaces/OnlineSessionDelegates.h"
 
+#pragma region Static
+
+bool UBaseGameInstance::IsSessionHost{};
+bool UBaseGameInstance::HasRunningSession{};
+	
+int UBaseGameInstance::InstanceSessionID{};
+	
+FName UBaseGameInstance::RunningSessionName{};
+
+#pragma endregion
+
 #pragma region Login/out
 
 void UBaseGameInstance::Login(const bool bUseDevTool, FString AuthToolId) const
