@@ -7,6 +7,7 @@
 #include "OnlineSubsystemUtils.h"
 #include "GameFramework/PlayerState.h"
 #include "Interfaces/OnlineSessionInterface.h"
+#include "Networking/BaseGameInstance.h"
 
 
 void ABaseGameSession::RegisterPlayer(APlayerController* NewPlayer, const FUniqueNetIdRepl& UniqueId,
@@ -14,7 +15,7 @@ void ABaseGameSession::RegisterPlayer(APlayerController* NewPlayer, const FUniqu
 {
 	Super::RegisterPlayer(NewPlayer, UniqueId, bWasFromInvite);
     
-	if (!true/*UEOS_OSS_GameInstance::IsSessionHost*/)
+	if (!UBaseGameInstance::IsSessionHost)
 	{
 		return;
 	}
@@ -35,7 +36,7 @@ void ABaseGameSession::RegisterPlayer(APlayerController* NewPlayer, const FUniqu
 			this,
 			&ThisClass::HandleRegisterPlayerCompleted));
         
-	if (!SessionInterface->RegisterPlayer(""/*UEOS_OSS_GameInstance::RunningSessionName*/, *UniqueId, false))
+	if (!SessionInterface->RegisterPlayer(UBaseGameInstance::RunningSessionName, *UniqueId, false))
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to Register Player!"));
 		SessionInterface->ClearOnRegisterPlayersCompleteDelegate_Handle(RegisterPlayerDelegateHandle);
@@ -67,7 +68,7 @@ void ABaseGameSession::UnregisterPlayer(const APlayerController* ExitingPlayer)
 {
 	Super::UnregisterPlayer(ExitingPlayer);
 	
-	if (!true/*UEOS_OSS_GameInstance::IsSessionHost && UEOS_OSS_GameInstance::HasRunningSession*/)
+	if (!UBaseGameInstance::IsSessionHost || !UBaseGameInstance::HasRunningSession)
 	{
 		return;
 	}
@@ -101,7 +102,7 @@ void ABaseGameSession::UnregisterPlayer(const APlayerController* ExitingPlayer)
 			this,
 			&ThisClass::HandleUnregisterPlayerCompleted));
 		
-	if (!Session->UnregisterPlayer(""/*UEOS_OSS_GameInstance::RunningSessionName*/, *ID))
+	if (!Session->UnregisterPlayer(UBaseGameInstance::RunningSessionName, *ID))
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to Unregister Player!"));
 		Session->ClearOnUnregisterPlayersCompleteDelegate_Handle(UnregisterPlayerDelegateHandle);

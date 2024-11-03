@@ -85,9 +85,8 @@ void UBaseGameInstance::CreateSession(const FName SessionName, const FCreateSess
 
 	// What clients will search to find the session
     SessionSettings->Settings.Add(KeyName, FOnlineSessionSetting((KeyValue), EOnlineDataAdvertisementType::ViaOnlineService));
-	
-	const IOnlineIdentityPtr IdentityInterface = Subsystem->GetIdentityInterface();
-    UE_LOG(LogTemp, Log, TEXT("Creating session... %s %s"), *SessionName.ToString(), *KeyValue);
+
+	UE_LOG(LogTemp, Log, TEXT("Creating session... %s %s"), *SessionName.ToString(), *KeyValue);
 
     if (!SessionInterface->CreateSession(0, SessionName, *SessionSettings))
     {
