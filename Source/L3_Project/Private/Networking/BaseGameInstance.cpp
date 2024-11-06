@@ -323,3 +323,192 @@ void UBaseGameInstance::Shutdown()
 }
 
 #pragma endregion
+
+#pragma region Instance Management
+
+void UBaseGameInstance::StartNewInstance(int SessionID)
+{
+	if (!IsLoggedIn())
+	{
+		UE_LOG(LogTemp, Error, TEXT("Not logged in"));
+		return;
+	}
+
+	auto OnTransition = [this, SessionID]() {
+		UE_LOG(LogTemp, Log, TEXT("Transition completed. Starting new instance."));
+		StartInstanceListenServer(SessionID);
+	};
+	
+	auto OnSessionDestroyed = [this, OnTransition](const bool bWasSuccessful) {
+		if(!bWasSuccessful)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Unable to destroy session. Going back to main menu."));
+
+			// Go back to main menu
+			return;
+		}
+
+		TransitionDelegate.BindLambda(OnTransition);
+		
+		StartTransition(ENetTransitionType::LobbyToInstance);
+	};
+	
+	DestroySessionDelegate.BindLambda(OnSessionDestroyed);
+
+	DestroySession();
+}
+
+void UBaseGameInstance::StartInstanceListenServer(const int SessionID) const
+{	
+	if (HasRunningSession)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Already in a session"));
+		return;
+	}
+
+	if (UWorld* World = GetWorld(); World != nullptr)
+	{
+		InstanceSessionID = SessionID;
+
+		const FString MapName = "/Game/ThirdPerson/Maps/ThirdPersonMap_Instance";
+		const FURL ListenURL(nullptr, *(MapName + "?listen"), TRAVEL_Absolute);
+		World->ServerTravel(ListenURL.ToString());
+	}
+}
+
+void UBaseGameInstance::StopInstance()
+{
+	if (!HasRunningSession)
+	{
+		UE_LOG(LogTemp, Error, TEXT("No running session"));
+		return;
+	}
+
+	/*const auto GameSession = GetWorld()->GetAuthGameMode()->GameSession;
+
+	if (!IsValid(GameSession))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No game session found"));
+		return;
+	}
+
+	isReturningToLobby = true;
+	
+	if (const auto controller = Cast<AInstancePlayerController>(GetFirstLocalPlayerController()))
+	{
+		controller->ReturnToLobby();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No controller found"));
+	}*/
+}
+
+void UBaseGameInstance::JoinInstance(FName SessionName, FBlueprintSessionSearchResult SessionData)
+{
+	if (!IsLoggedIn())
+	{
+		UE_LOG(LogTemp, Error, TEXT("Not logged in"));
+		return;
+	}
+
+	auto OnTransition = [this, SessionName, SessionData]() {
+		JoinSession(SessionName, SessionData);
+	};
+	
+	auto OnSessionDestroyed = [this, OnTransition](const bool bWasSuccessful) {
+		if (!bWasSuccessful)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Failed to destroy session. Return to main menu."));
+
+			// Go back to main menu
+			return;
+		}
+		
+		TransitionDelegate.BindLambda(OnTransition);
+			
+		StartTransition(ENetTransitionType::LobbyToInstance);
+	};
+	
+	DestroySessionDelegate.BindLambda(OnSessionDestroyed);
+	
+	DestroySession();
+}
+
+void UBaseGameInstance::ReturnToLobby()
+{
+	if (!IsLoggedIn())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Not logged in"));
+		return;
+	}
+
+	auto OnSessionFound = [this](const bool bWasSuccessful, const FBlueprintSessionSearchResult& Search)
+	{
+		if (!bWasSuccessful)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Failed to find session. Return to main menu."));
+
+			// Go back to main menu
+			return;
+		}
+
+		JoinSession("Lobby", Search);
+	};
+	
+	auto OnTransition = [this, OnSessionFound]() {
+		CPP_FindSessionsDelegate.BindLambda(OnSessionFound);
+		
+		FindSessions("TYPE", "Lobby", {});
+	};
+	
+	auto OnSessionDestroyed = [this, OnTransition](const bool bWasSuccessful) {
+		if (!bWasSuccessful)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Failed to destroy session. Return to main menu."));
+
+			// Go back to main menu
+			return;
+		}
+		
+		TransitionDelegate.BindLambda(OnTransition);
+			
+		StartTransition(ENetTransitionType::LobbyToInstance);
+	};
+	
+	DestroySessionDelegate.BindLambda(OnSessionDestroyed);
+	
+	DestroySession();
+}
+
+#pragma endregion
+
+#pragma region Transition
+
+void UBaseGameInstance::StartTransition(const ENetTransitionType TransitionType)
+{
+	auto Map = TEXT("");
+
+	switch (TransitionType)
+	{
+		case ENetTransitionType::InstanceToLobby:
+		case ENetTransitionType::LobbyToInstance:
+			Map = TEXT("/Game/ThirdPerson/Maps/Transition");
+			break;
+		default:
+			break;
+	}
+	
+	if (APlayerController* PlayerController = GetFirstLocalPlayerController())
+	{
+		PlayerController->ClientTravel(Map, TRAVEL_Absolute);
+	}
+}
+
+void UBaseGameInstance::OnTransitionEntered()
+{
+	(void)TransitionDelegate.ExecuteIfBound();
+	TransitionDelegate.Unbind();
+}
+
+#pragma endregion

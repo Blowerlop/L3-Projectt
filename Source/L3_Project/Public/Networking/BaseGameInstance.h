@@ -23,6 +23,20 @@ struct FBlueprintSessionSearchResult
 	}
 };
 
+UENUM(BlueprintType)
+enum class EDisconnectType : uint8
+{
+	NetworkFailure UMETA(DisplayName="Network Failure"),
+	BridgeMap UMETA(DisplayName="Bridge Map"), 
+};
+
+UENUM(BlueprintType)
+enum class ENetTransitionType : uint8
+{
+	LobbyToInstance UMETA(DisplayName="Lobby To Instance"),
+	InstanceToLobby UMETA(DisplayName="Instance To Lobby"), 
+};
+
 /**
  * 
  */
@@ -35,6 +49,8 @@ class L3_PROJECT_API UBaseGameInstance : public UGameInstance
 	
 	DECLARE_DELEGATE_OneParam(FDestroySessionDelegate, bool);
 	DECLARE_DELEGATE_TwoParams(FFindSessionsDelegateCPP, bool bWasSuccessful, const FBlueprintSessionSearchResult& Search);
+
+	DECLARE_DELEGATE(FTransitionDelegate);
 	
 public:
 	static bool IsSessionHost;
@@ -50,6 +66,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Custom Online Session")
 	void Logout() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Online Session")
+	bool IsLoggedIn() const;
+	
 	UFUNCTION(BlueprintCallable, Category = "Custom Online Session", meta = (AutoCreateRefTerm = "Delegate"))
 	void CreateSession(FName SessionName, FCreateSessionDelegate Delegate, FName KeyName = "KeyName",
 		FString KeyValue = "KeyValue", bool bDedicatedServer = true);
@@ -65,8 +84,22 @@ public:
 	void JoinSession(FName SessionName, FBlueprintSessionSearchResult SessionData);
 
 	UFUNCTION(BlueprintCallable, Category = "Online Session")
-	bool IsLoggedIn() const;
+	void StartNewInstance(int SessionID/*, ??? instanceData*/);
+	void StartInstanceListenServer(const int SessionID) const;
 
+	UFUNCTION(BlueprintCallable, Category = "Online Session")
+	void StopInstance();
+	
+	UFUNCTION(BlueprintCallable, Category = "Online Session")
+	void JoinInstance(FName SessionName, FBlueprintSessionSearchResult SessionData);
+
+	void ReturnToLobby();
+
+	void StartTransition(ENetTransitionType TransitionType);
+	
+	UFUNCTION(BlueprintCallable, Category = "Online Session")
+	void OnTransitionEntered();
+	
 private:
 	FDelegateHandle CreateSessionDelegateHandle;
 	FCreateSessionDelegate BP_CreateSessionDelegate;
@@ -79,10 +112,15 @@ private:
 	FFindSessionsDelegateCPP CPP_FindSessionsDelegate;
 	
 	FDelegateHandle JoinSessionDelegateHandle;
+
+	FTransitionDelegate TransitionDelegate;
 	
 	const int MaxNumberOfPlayersInSession = 5;
 
+	virtual void Init() override;
 	virtual void Shutdown() override;
+	
+	void OnNetworkFailure(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type Arg, const FString& String);
 	
 	void HandleCreateSessionCompleted(FName EosSessionName, bool bWasSuccessful);
 	
