@@ -307,6 +307,20 @@ void UBaseGameInstance::HandleJoinSessionCompleted(const FName SessionName, cons
 
 #pragma region Lifecycle
 
+void UBaseGameInstance::Init()
+{
+	Super::Init();
+	
+	HasRunningSession = false;
+	IsSessionHost = false;
+	RunningSessionName = {};
+
+	if(GEngine)
+	{
+		GEngine->OnNetworkFailure().AddUObject(this, &UBaseGameInstance::OnNetworkFailure);
+	}
+}
+
 void UBaseGameInstance::Shutdown()
 {
 	Super::Shutdown();
@@ -320,6 +334,15 @@ void UBaseGameInstance::Shutdown()
 	{
 		Logout();
 	}
+}
+
+void UBaseGameInstance::OnNetworkFailure(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type Arg,
+	const FString& String)
+{
+	UE_LOG(LogTemp, Error, TEXT("Network failure. %s %d"), *String, Arg);
+
+	// Try to return to lobby if in instance
+	// If already in lobby, or can't return to lobby, go back to main menu
 }
 
 #pragma endregion
