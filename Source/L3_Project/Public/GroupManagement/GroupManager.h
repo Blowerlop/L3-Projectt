@@ -54,7 +54,7 @@ struct FReplicatedGroupData
 	TArray<FString> GroupMembers{};
 };
 
-class GroupManager
+class FGroupManager
 {
 public:
 	static TMap<int32, FServerGroupData> Groups;

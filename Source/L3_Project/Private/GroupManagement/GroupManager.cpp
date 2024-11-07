@@ -1,8 +1,8 @@
 #include "GroupManagement/GroupManager.h"
 #include "Player/LobbyPlayerController.h"
 
-TMap<int32, FServerGroupData> GroupManager::Groups = TMap<int, FServerGroupData>();
-int32 GroupManager::GroupIdCounter = 0;
+TMap<int32, FServerGroupData> FGroupManager::Groups = TMap<int, FServerGroupData>();
+int32 FGroupManager::GroupIdCounter = 0;
 
 TArray<FString> FServerGroupData::GetMembersAsString() const
 {
@@ -17,7 +17,7 @@ TArray<FString> FServerGroupData::GetMembersAsString() const
 	return Members;
 }
 
-int32 GroupManager::CreateGroup(ALobbyPlayerController* Owner)
+int32 FGroupManager::CreateGroup(ALobbyPlayerController* Owner)
 {
 	if (!IsValid(Owner)) return -1;
 	
@@ -50,7 +50,7 @@ void RefreshGroupForMembers(FServerGroupData* Group)
 	}
 }
 
-void GroupManager::AddToGroup(ALobbyPlayerController* Player, const int32 GroupId)
+void FGroupManager::AddToGroup(ALobbyPlayerController* Player, const int32 GroupId)
 {
 	if (!IsValid(Player)) return;
 	
@@ -67,7 +67,7 @@ void GroupManager::AddToGroup(ALobbyPlayerController* Player, const int32 GroupI
 	RefreshGroupForMembers(Group);
 }
 
-void GroupManager::RemoveFromGroup(ALobbyPlayerController* Player, int32 GroupId)
+void FGroupManager::RemoveFromGroup(ALobbyPlayerController* Player, int32 GroupId)
 {
 	if (!IsValid(Player)) return;
 	
@@ -80,7 +80,7 @@ void GroupManager::RemoveFromGroup(ALobbyPlayerController* Player, int32 GroupId
 	RefreshGroupForMembers(Group);
 }
 
-void GroupManager::DestroyGroup(int32 GroupId)
+void FGroupManager::DestroyGroup(int32 GroupId)
 {
 	const auto Group = Groups.Find(GroupId);
 	if (!Group) return;
@@ -108,7 +108,7 @@ bool HasInviteForGroup(ALobbyPlayerController* Player, const int GroupID)
 	return false;
 }
 
-void GroupManager::InviteToGroup(ALobbyPlayerController* Inviter, ALobbyPlayerController* Invited)
+void FGroupManager::InviteToGroup(ALobbyPlayerController* Inviter, ALobbyPlayerController* Invited)
 {
 	if (!IsValid(Inviter) || !IsValid(Invited)) return;
 
@@ -138,7 +138,7 @@ void GroupManager::InviteToGroup(ALobbyPlayerController* Inviter, ALobbyPlayerCo
 	Invited->AddInvite(FInviteData { GroupId, ID, Group->GetMembersAsString() });
 }
 
-void GroupManager::AcceptGroupInvite(ALobbyPlayerController* Invited, int32 InviteId)
+void FGroupManager::AcceptGroupInvite(ALobbyPlayerController* Invited, int32 InviteId)
 {
 	UE_LOG(LogTemp, Log, TEXT("groupmanagher AcceptGroupInvite 1 %d"), InviteId);
 	if (!IsValid(Invited) || Invited->ReplicatedGroupData.IsValid)
@@ -153,7 +153,7 @@ void GroupManager::AcceptGroupInvite(ALobbyPlayerController* Invited, int32 Invi
 	AddToGroup(Invited, Invite->GroupId);
 }
 
-bool GroupManager::IsGroupLeader(ALobbyPlayerController* Player)
+bool FGroupManager::IsGroupLeader(ALobbyPlayerController* Player)
 {
 	return IsValid(Player)
 	&& Player->ReplicatedGroupData.IsValid
@@ -161,7 +161,7 @@ bool GroupManager::IsGroupLeader(ALobbyPlayerController* Player)
 	&& Groups[Player->ReplicatedGroupData.GroupId].GroupMembers[0] == Player;
 }
 
-FServerGroupData* GroupManager::GetGroup(const int32 GroupId)
+FServerGroupData* FGroupManager::GetGroup(const int32 GroupId)
 {
 	return Groups.Find(GroupId);
 }

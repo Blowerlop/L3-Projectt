@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <functional>
+
 #include "CoreMinimal.h"
 #include "OnlineSessionSettings.h"
 #include "Engine/GameInstance.h"
@@ -57,6 +59,7 @@ public:
 	static bool HasRunningSession;
 	
 	static int InstanceSessionID;
+	static bool IsInstanceBeingDestroyed;
 	
 	static FName RunningSessionName;
 	
@@ -75,17 +78,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Custom Online Session")
 	void DestroySession();
-	void DestroySessionWithCallback(const FDestroySessionDelegate& Delegate);
+
+	typedef std::function<void(const bool)> DSWCFunc;
+	void DestroySessionWithCallback(const DSWCFunc& Func);
 	
 	UFUNCTION(BlueprintCallable, Category = "Custom Online Session", meta = (AutoCreateRefTerm = "Delegate"))
 	void FindSessions(FName SearchKey, FString SearchValue, FFindSessionsDelegate Delegate);
 	
 	UFUNCTION(BlueprintCallable, Category = "Custom Online Session")
 	void JoinSession(FName SessionName, FBlueprintSessionSearchResult SessionData);
-
-	UFUNCTION(BlueprintCallable, Category = "Online Session")
-	void StartNewInstance(int SessionID/*, ??? instanceData*/);
-	void StartInstanceListenServer(const int SessionID) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Online Session")
 	void StopInstance();
@@ -95,7 +96,9 @@ public:
 
 	void ReturnToLobby();
 
+	typedef std::function<void()> TransitionFunc;
 	void StartTransition(ENetTransitionType TransitionType);
+	void StartTransition(ENetTransitionType TransitionType, const TransitionFunc& Func);
 	
 	UFUNCTION(BlueprintCallable, Category = "Online Session")
 	void OnTransitionEntered();

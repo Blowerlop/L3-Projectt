@@ -5,11 +5,12 @@
 
 #include "Net/UnrealNetwork.h"
 #include "Networking/BaseGameInstance.h"
+#include "Networking/InstancesManagerSubsystem.h"
 
 void ALobbyPlayerController::AcceptGroupInviteServerRPC_Implementation(const int32 InviteId)
 {
 	UE_LOG(LogTemp, Log, TEXT("rpc accept invite %d"), InviteId);
-	GroupManager::AcceptGroupInvite(this, InviteId);
+	FGroupManager::AcceptGroupInvite(this, InviteId);
 }
 
 void ALobbyPlayerController::AddInvite(const FInviteData& Invite)
@@ -46,7 +47,7 @@ void ALobbyPlayerController::LeaveCurrentGroupServerRPC_Implementation()
 {
 	if (!ReplicatedGroupData.IsValid) return;
 
-	GroupManager::RemoveFromGroup(this, ReplicatedGroupData.GroupId);
+	FGroupManager::RemoveFromGroup(this, ReplicatedGroupData.GroupId);
 }
 
 void ALobbyPlayerController::LeaveCurrentGroup()
@@ -58,16 +59,19 @@ void ALobbyPlayerController::OnInstanceValidatedClientRPC_Implementation(int32 I
 {
 	const auto GameInstance = Cast<UBaseGameInstance>(GetGameInstance());
 	if (!IsValid(GameInstance)) return;
+
+	const auto InstancesManager = GameInstance->GetSubsystem<UInstancesManagerSubsystem>();
+	if (!IsValid(InstancesManager)) return;
 	
-	GameInstance->StartNewInstance(InstanceID);
+	InstancesManager->StartNewInstance(InstanceID);
 }
 
 void ALobbyPlayerController::StartInstanceServerRPC_Implementation()
 {
-	if (!GroupManager::IsGroupLeader(this)) return;
+	if (!FGroupManager::IsGroupLeader(this)) return;
 
 	const auto NewInstanceId = 0;/*InstancesManager::GetInstanceID()*/;
-	const auto Group = GroupManager::GetGroup(ReplicatedGroupData.GroupId);
+	const auto Group = FGroupManager::GetGroup(ReplicatedGroupData.GroupId);
 
 	OnInstanceValidatedClientRPC(NewInstanceId);
 	

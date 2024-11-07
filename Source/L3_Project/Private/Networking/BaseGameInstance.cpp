@@ -11,8 +11,9 @@
 
 bool UBaseGameInstance::IsSessionHost{};
 bool UBaseGameInstance::HasRunningSession{};
-	
+
 int UBaseGameInstance::InstanceSessionID{};
+bool UBaseGameInstance::IsInstanceBeingDestroyed{};
 	
 FName UBaseGameInstance::RunningSessionName{};
 
@@ -151,9 +152,9 @@ void UBaseGameInstance::DestroySession()
 	}
 }
 
-void UBaseGameInstance::DestroySessionWithCallback(const FDestroySessionDelegate& Delegate)
+void UBaseGameInstance::DestroySessionWithCallback(const DSWCFunc& Func)
 {
-	DestroySessionDelegate = Delegate;
+	DestroySessionDelegate.BindLambda(Func);
 	DestroySession();
 }
 
@@ -349,56 +350,6 @@ void UBaseGameInstance::OnNetworkFailure(UWorld* World, UNetDriver* NetDriver, E
 
 #pragma region Instance Management
 
-void UBaseGameInstance::StartNewInstance(int SessionID)
-{
-	if (!IsLoggedIn())
-	{
-		UE_LOG(LogTemp, Error, TEXT("Not logged in"));
-		return;
-	}
-
-	auto OnTransition = [this, SessionID]() {
-		UE_LOG(LogTemp, Log, TEXT("Transition completed. Starting new instance."));
-		StartInstanceListenServer(SessionID);
-	};
-	
-	auto OnSessionDestroyed = [this, OnTransition](const bool bWasSuccessful) {
-		if(!bWasSuccessful)
-		{
-			UE_LOG(LogTemp, Error, TEXT("Unable to destroy session. Going back to main menu."));
-
-			// Go back to main menu
-			return;
-		}
-
-		TransitionDelegate.BindLambda(OnTransition);
-		
-		StartTransition(ENetTransitionType::LobbyToInstance);
-	};
-	
-	DestroySessionDelegate.BindLambda(OnSessionDestroyed);
-
-	DestroySession();
-}
-
-void UBaseGameInstance::StartInstanceListenServer(const int SessionID) const
-{	
-	if (HasRunningSession)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Already in a session"));
-		return;
-	}
-
-	if (UWorld* World = GetWorld(); World != nullptr)
-	{
-		InstanceSessionID = SessionID;
-
-		const FString MapName = "/Game/ThirdPerson/Maps/ThirdPersonMap_Instance";
-		const FURL ListenURL(nullptr, *(MapName + "?listen"), TRAVEL_Absolute);
-		World->ServerTravel(ListenURL.ToString());
-	}
-}
-
 void UBaseGameInstance::StopInstance()
 {
 	if (!HasRunningSession)
@@ -407,6 +358,8 @@ void UBaseGameInstance::StopInstance()
 		return;
 	}
 
+	IsInstanceBeingDestroyed = true;
+	
 	/*const auto GameSession = GetWorld()->GetAuthGameMode()->GameSession;
 
 	if (!IsValid(GameSession))
@@ -466,6 +419,8 @@ void UBaseGameInstance::ReturnToLobby()
 		return;
 	}
 
+	IsInstanceBeingDestroyed = false;
+	
 	auto OnSessionFound = [this](const bool bWasSuccessful, const FBlueprintSessionSearchResult& Search)
 	{
 		if (!bWasSuccessful)
@@ -508,10 +463,10 @@ void UBaseGameInstance::ReturnToLobby()
 
 #pragma region Transition
 
-void UBaseGameInstance::StartTransition(const ENetTransitionType TransitionType)
+void UBaseGameInstance::StartTransition(ENetTransitionType TransitionType)
 {
 	auto Map = TEXT("");
-
+	
 	switch (TransitionType)
 	{
 		case ENetTransitionType::InstanceToLobby:
@@ -526,6 +481,12 @@ void UBaseGameInstance::StartTransition(const ENetTransitionType TransitionType)
 	{
 		PlayerController->ClientTravel(Map, TRAVEL_Absolute);
 	}
+}
+
+void UBaseGameInstance::StartTransition(const ENetTransitionType TransitionType, const TransitionFunc& Func)
+{
+	TransitionDelegate.BindLambda(Func);
+	StartTransition(TransitionType);
 }
 
 void UBaseGameInstance::OnTransitionEntered()
